@@ -12,6 +12,7 @@ export default function FacturaIndividual() {
   const supabase = createClient()
   const router = useRouter()
   const [usuario, setUsuario] = useState(null)
+  const [perfil, setPerfil] = useState(null)
   const [sedes, setSedes] = useState([])
   const [clientes, setClientes] = useState([])
   const [productos, setProductos] = useState([])
@@ -31,11 +32,13 @@ export default function FacturaIndividual() {
   const [invoiceTaxId, setInvoiceTaxId] = useState('')
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.push('/login')
-      else setUsuario(data.user)
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) { router.push('/login'); return }
+      setUsuario(data.user)
+      const { data: p } = await supabase.from('usuarios').select('*').eq('id', data.user.id).single()
+      setPerfil(p)
+      cargarDatos(p)
     })
-    cargarDatos()
   }, [])
 
   useEffect(() => {
@@ -43,14 +46,18 @@ export default function FacturaIndividual() {
     cargarProductos(sede_id)
   }, [sede_id])
 
-  async function cargarDatos() {
+  async function cargarDatos(p) {
+    const sedeRestringida = p?.sede_id || null
     const [s, c] = await Promise.all([
-      supabase.from('sedes').select('*').eq('active', true).order('nombre'),
+      sedeRestringida
+        ? supabase.from('sedes').select('*').eq('id', sedeRestringida)
+        : supabase.from('sedes').select('*').eq('active', true).order('nombre'),
       supabase.from('clientes').select('*').eq('active', true).order('razon_social'),
     ])
     setSedes(s.data || [])
     setClientes(c.data || [])
-    if (s.data?.length) setSedeId(s.data[0].id)
+    const primeraSedeId = sedeRestringida || s.data?.[0]?.id || ''
+    setSedeId(primeraSedeId)
   }
 
   async function cargarProductos(sedeId) {
@@ -279,7 +286,12 @@ if (t === 'I') {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
             <div>
               <label style={labelStyle}>Sede</label>
-              <select style={inputStyle} value={sede_id} onChange={e => setSedeId(e.target.value)}>
+              <select
+                style={{ ...inputStyle, background: perfil?.sede_id ? '#f5f5f5' : '#fff', color: perfil?.sede_id ? '#888' : '#333' }}
+                value={sede_id}
+                onChange={e => !perfil?.sede_id && setSedeId(e.target.value)}
+                disabled={!!perfil?.sede_id}
+              >
                 {sedes.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
               </select>
             </div>

@@ -28,6 +28,7 @@ export default function Mensual() {
   const supabase = createClient()
   const now = new Date()
   const [usuario, setUsuario] = useState(null)
+  const [perfil, setPerfil] = useState(null)
   const [mes, setMes] = useState(now.getMonth())
   const [anio, setAnio] = useState(now.getFullYear())
   const [comprobantes, setComprobantes] = useState([])
@@ -44,27 +45,36 @@ export default function Mensual() {
   const [exportarTodo, setExportarTodo] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) window.location.href = '/login'
-      else setUsuario(data.user)
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) { window.location.href = '/login'; return }
+      setUsuario(data.user)
+      const { data: p } = await supabase.from('usuarios').select('*').eq('id', data.user.id).single()
+      setPerfil(p)
     })
   }, [])
 
-  useEffect(() => { if (usuario) cargarDatos() }, [mes, anio, usuario])
+  useEffect(() => { if (usuario && perfil !== undefined) cargarDatos() }, [mes, anio, usuario, perfil])
 
   async function cargarDatos() {
     const fechaDesde = `${anio}-${String(mes + 1).padStart(2, '0')}-01`
     const ultimoDia = new Date(anio, mes + 1, 0).getDate()
     const fechaHasta = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`
 
+    const sedeRestringida = perfil?.sede_id || null
+
+    let compQuery = supabase.from('comprobantes')
+      .select('id, sede_id, cliente_id, tipo, fecha, recurrente, notas, estado, tc_cambio, comprobante_items(id, descripcion, cantidad, precio_neto, descuento_pct, proporcional_pct, alicuota_iva, producto_id, cuenta_contable)')
+      .gte('fecha', fechaDesde)
+      .lte('fecha', fechaHasta)
+      .order('fecha')
+    if (sedeRestringida) compQuery = compQuery.eq('sede_id', sedeRestringida)
+
     const [compRes, cliRes, sedRes, prodRes] = await Promise.all([
-      supabase.from('comprobantes')
-        .select('id, sede_id, cliente_id, tipo, fecha, recurrente, notas, estado, tc_cambio, comprobante_items(id, descripcion, cantidad, precio_neto, descuento_pct, proporcional_pct, alicuota_iva, producto_id, cuenta_contable)')
-        .gte('fecha', fechaDesde)
-        .lte('fecha', fechaHasta)
-        .order('fecha'),
+      compQuery,
       supabase.from('clientes').select('id, razon_social, cuit'),
-      supabase.from('sedes').select('id, nombre, punto_venta'),
+      sedeRestringida
+        ? supabase.from('sedes').select('id, nombre, punto_venta').eq('id', sedeRestringida)
+        : supabase.from('sedes').select('id, nombre, punto_venta'),
       supabase.from('productos').select('id, nombre, precio_neto, alicuota_iva'),
     ])
 
@@ -72,6 +82,7 @@ export default function Mensual() {
     setClientes(Object.fromEntries((cliRes.data || []).map(c => [c.id, c])))
     setSedes(Object.fromEntries((sedRes.data || []).map(s => [s.id, s])))
     setSedesLista(sedRes.data || [])
+    if (sedeRestringida) setSedeFiltro(sedeRestringida)
     setProductos(prodRes.data || [])
   }
 
