@@ -108,7 +108,7 @@ if (t === 'I') {
   function onProductoChange(i, prod_id) {
     const p = productos.find(x => x.id === prod_id)
     const newItems = [...items]
-    newItems[i] = { ...newItems[i], prod_id, descripcion: p?.nombre || '', precio_neto: p?.precio_neto || 0, alicuota_iva: p?.alicuota_iva || 21, cuenta_contable: p?.cuenta_contable || '' }
+    newItems[i] = { ...newItems[i], prod_id, descripcion: p?.nombre || '', precio_neto: p?.precio_neto || 0, alicuota_iva: p?.alicuota_iva || 21, cuenta_contable: p?.cuenta_contable || '', nombre_cuenta_contable: p?.nombre_cuenta_contable || '' }
     setItems(newItems)
   }
 
@@ -413,7 +413,7 @@ if (t === 'I') {
                       </select>
                       {it.cuenta_contable && (
                         <div style={{ marginTop: '4px', display: 'inline-block', padding: '2px 8px', borderRadius: '4px', background: '#EDE9FE', color: '#5B21B6', fontSize: '10px', fontWeight: '700' }}>
-                          {it.cuenta_contable}
+                          {it.nombre_cuenta_contable ? `${it.nombre_cuenta_contable} · ${it.cuenta_contable}` : it.cuenta_contable}
                         </div>
                       )}
                     </td>

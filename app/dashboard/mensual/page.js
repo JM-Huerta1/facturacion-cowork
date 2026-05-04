@@ -115,7 +115,7 @@ export default function Mensual() {
       sedeRestringida
         ? supabase.from('sedes').select('id, nombre, punto_venta').eq('id', sedeRestringida)
         : supabase.from('sedes').select('id, nombre, punto_venta'),
-      supabase.from('productos').select('id, nombre, precio_neto, alicuota_iva'),
+      supabase.from('productos').select('id, nombre, precio_neto, alicuota_iva, cuenta_contable, nombre_cuenta_contable'),
     ])
 
     setComprobantes(compRes.data || [])
@@ -347,7 +347,13 @@ export default function Mensual() {
                 const total = calcTotal(comp.comprobante_items)
                 const itemsLabel = (comp.comprobante_items || []).map(it => `${it.cantidad}x ${it.descripcion}`).join(', ')
                 const tieneProp = (comp.comprobante_items || []).some(it => Number(it.proporcional_pct) < 100)
-                const cuentas = [...new Set((comp.comprobante_items || []).map(it => it.cuenta_contable).filter(Boolean))]
+                const cuentas = [...new Map((comp.comprobante_items || [])
+                  .filter(it => it.cuenta_contable)
+                  .map(it => {
+                    const prod = productos.find(p => p.id === it.producto_id)
+                    const nombre = prod?.nombre_cuenta_contable || it.cuenta_contable
+                    return [it.cuenta_contable, nombre]
+                  })).entries()].map(([codigo, nombre]) => ({ codigo, nombre }))
                 return (
                   <tr key={comp.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
                     <td style={{ padding: '12px 16px', color: '#666', whiteSpace: 'nowrap' }}>{comp.fecha}</td>
@@ -371,9 +377,9 @@ export default function Mensual() {
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                         {cuentas.length === 0
                           ? <span style={{ color: '#ddd', fontSize: '12px' }}>—</span>
-                          : cuentas.map(c => {
-                              const col = getCuentaColor(c)
-                              return <span key={c} style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: col.bg, color: col.color, whiteSpace: 'nowrap' }}>{c}</span>
+                          : cuentas.map(({ codigo, nombre }) => {
+                              const col = getCuentaColor(codigo)
+                              return <span key={codigo} style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: col.bg, color: col.color, whiteSpace: 'nowrap' }}>{nombre}</span>
                             })
                         }
                       </div>
@@ -459,10 +465,11 @@ export default function Mensual() {
                     <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
                       <td style={{ padding: '10px', fontWeight: '500', color: '#1a1a2e' }}>{it.descripcion}</td>
                       <td style={{ padding: '10px' }}>
-                        {it.cuenta_contable
-                          ? <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: col.bg, color: col.color }}>{it.cuenta_contable}</span>
-                          : <span style={{ color: '#ddd' }}>—</span>
-                        }
+                        {it.cuenta_contable ? (() => {
+                          const prod = productos.find(p => p.id === it.producto_id)
+                          const nombre = prod?.nombre_cuenta_contable || it.cuenta_contable
+                          return <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: col.bg, color: col.color }}>{nombre}<span style={{ opacity: .6, marginLeft: '4px' }}>· {it.cuenta_contable}</span></span>
+                        })() : <span style={{ color: '#ddd' }}>—</span>}
                       </td>
                       <td style={{ padding: '10px', color: '#555' }}>{it.cantidad}</td>
                       <td style={{ padding: '10px', color: '#555' }}>{formatMoney(Number(it.precio_neto))}</td>
