@@ -108,7 +108,7 @@ if (t === 'I') {
   function onProductoChange(i, prod_id) {
     const p = productos.find(x => x.id === prod_id)
     const newItems = [...items]
-    newItems[i] = { ...newItems[i], prod_id, descripcion: p?.nombre || '', precio_neto: p?.precio_neto || 0, alicuota_iva: p?.alicuota_iva || 21 }
+    newItems[i] = { ...newItems[i], prod_id, descripcion: p?.nombre || '', precio_neto: p?.precio_neto || 0, alicuota_iva: p?.alicuota_iva || 21, cuenta_contable: p?.cuenta_contable || '' }
     setItems(newItems)
   }
 
@@ -119,7 +119,7 @@ if (t === 'I') {
   }
 
   function addItem() {
-    setItems([...items, { prod_id: '', descripcion: '', cantidad: 1, precio_neto: 0, descuento_pct: 0, proporcional_pct: 100, alicuota_iva: 21 }])
+    setItems([...items, { prod_id: '', descripcion: '', cantidad: 1, precio_neto: 0, descuento_pct: 0, proporcional_pct: 100, alicuota_iva: 21, cuenta_contable: '' }])
   }
 
   function removeItem(i) {
@@ -199,6 +199,7 @@ if (t === 'I') {
       descuento_pct: Number(it.descuento_pct || 0),
       proporcional_pct: Number(it.proporcional_pct || 100),
       alicuota_iva: conIva ? Number(it.alicuota_iva || 21) : 0,
+      cuenta_contable: it.cuenta_contable || null,
     }))
 
     const { error: errorItems } = await supabase
@@ -406,9 +407,15 @@ if (t === 'I') {
                     <td style={{ padding: '6px 4px' }}>
                       <select style={{ ...inputStyle, fontSize: '12px' }} value={it.prod_id} onChange={e => onProductoChange(i, e.target.value)}>
                         <option value="">— Producto —</option>
+
                         {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                         <option value="_custom">✎ Personalizado</option>
                       </select>
+                      {it.cuenta_contable && (
+                        <div style={{ marginTop: '4px', display: 'inline-block', padding: '2px 8px', borderRadius: '4px', background: '#EDE9FE', color: '#5B21B6', fontSize: '10px', fontWeight: '700' }}>
+                          {it.cuenta_contable}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '6px 4px' }}><input style={{ ...inputStyle, fontSize: '12px' }} value={it.descripcion} onChange={e => updItem(i, 'descripcion', e.target.value)} /></td>
                     <td style={{ padding: '6px 4px' }}><input type="number" style={{ ...inputStyle, fontSize: '12px', width: '64px' }} value={it.cantidad} onChange={e => updItem(i, 'cantidad', +e.target.value)} /></td>

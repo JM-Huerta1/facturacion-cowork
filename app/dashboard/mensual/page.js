@@ -8,6 +8,25 @@ const TIPO_COLORS = { A: '#E6F1FB', B: '#FFF3CD', C: '#f5f5f5', X: '#EEEDFE', I:
 const TIPO_TEXT = { A: '#185FA5', B: '#854F0B', C: '#555', X: '#534AB7', I: '#993C1D', ND: '#A32D2D' }
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
+const SEDE_COLORS = [
+  { bg: '#EEF2FF', color: '#3730A3' },
+  { bg: '#FEF3C7', color: '#92400E' },
+  { bg: '#DCFCE7', color: '#15803D' },
+  { bg: '#FCE7F3', color: '#9D174D' },
+  { bg: '#E0F2FE', color: '#075985' },
+  { bg: '#FFF7ED', color: '#C2410C' },
+]
+const sedeColorMap = {}
+let sedeColorIdx = 0
+function getSedeColor(sedeId) {
+  if (!sedeId) return { bg: '#f5f5f5', color: '#888' }
+  if (!sedeColorMap[sedeId]) {
+    sedeColorMap[sedeId] = SEDE_COLORS[sedeColorIdx % SEDE_COLORS.length]
+    sedeColorIdx++
+  }
+  return sedeColorMap[sedeId]
+}
+
 const CUENTA_COLORS = [
   { bg: '#EDE9FE', color: '#5B21B6' },
   { bg: '#DCFCE7', color: '#15803D' },
@@ -337,9 +356,11 @@ export default function Mensual() {
                       <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>{cli?.cuit}</div>
                     </td>
                     <td style={{ padding: '12px 16px' }}>
-                      <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: '#EEF2FF', color: '#3730A3', whiteSpace: 'nowrap' }}>
-                        {sede?.nombre || '—'}
-                      </span>
+                      {(() => { const col = getSedeColor(comp.sede_id); return (
+                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: col.bg, color: col.color, whiteSpace: 'nowrap' }}>
+                          {sede?.nombre || '—'}
+                        </span>
+                      )})()}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: TIPO_COLORS[comp.tipo], color: TIPO_TEXT[comp.tipo] }}>
@@ -405,7 +426,7 @@ export default function Mensual() {
                 <div style={{ fontSize: '12px', color: '#888', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>{clientes[verComp.cliente_id]?.cuit}</span>
                   <span>·</span>
-                  <span style={{ padding: '1px 8px', borderRadius: '20px', background: '#EEF2FF', color: '#3730A3', fontWeight: '700', fontSize: '11px' }}>{sedes[verComp.sede_id]?.nombre}</span>
+                  {(() => { const col = getSedeColor(verComp.sede_id); return <span style={{ padding: '1px 8px', borderRadius: '20px', background: col.bg, color: col.color, fontWeight: '700', fontSize: '11px' }}>{sedes[verComp.sede_id]?.nombre}</span> })()}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
