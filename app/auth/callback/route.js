@@ -21,7 +21,17 @@ export async function GET(request) {
         },
       }
     )
-    await supabase.auth.exchangeCodeForSession(code)
+    const { data: { user } } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (user) {
+      await supabase.from('usuarios').upsert({
+        id: user.id,
+        email: user.email,
+        nombre: user.user_metadata?.full_name || user.email,
+        rol: 'FRONT_DESK',
+        active: true,
+      }, { onConflict: 'id', ignoreDuplicates: true })
+    }
   }
 
   return NextResponse.redirect(`${origin}/dashboard`)
