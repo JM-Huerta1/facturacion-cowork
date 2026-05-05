@@ -208,15 +208,16 @@ export default function Mensual() {
   async function exportarCSV() {
     const paraExportar = exportarTodo ? comprobantes : comprobantes.filter(c => c.estado === 'pendiente')
     if (!paraExportar.length) return setMensaje(exportarTodo ? 'No hay comprobantes en este mes' : 'No hay comprobantes pendientes para exportar')
-    const rows = [['Fecha','Tipo Comprobante','CUIT','Razon Social','Descripcion','Precio Unitario','Cantidad','Subtotal Neto','IVA %','IVA Monto','Total','Cuenta Contable','Centro de Costo']]
-    for (const comp of paraExportar) {
+    const rows = [['N° Comp.','Fecha','Tipo Comprobante','CUIT','Razon Social','Descripcion','Precio Unitario','Cantidad','Subtotal Neto','IVA %','IVA Monto','Total','Cuenta Contable','Centro de Costo']]
+    paraExportar.forEach((comp, idx) => {
       const c = clientes[comp.cliente_id], s = sedes[comp.sede_id]
+      const nComp = idx + 1
       for (const it of comp.comprobante_items || []) {
         const base = Number(it.precio_neto) * Number(it.cantidad) * (1 - Number(it.descuento_pct) / 100) * (Number(it.proporcional_pct) / 100)
         const iva_monto = base * (Number(it.alicuota_iva) / 100)
-        rows.push([comp.fecha, `Factura ${comp.tipo}`, c?.cuit || '', c?.razon_social || '', it.descripcion, Math.round(Number(it.precio_neto)), it.cantidad, Math.round(base), it.alicuota_iva, Math.round(iva_monto), Math.round(base + iva_monto), it.cuenta_contable || '', s?.nombre || ''])
+        rows.push([nComp, comp.fecha, `Factura ${comp.tipo}`, c?.cuit || '', c?.razon_social || '', it.descripcion, Math.round(Number(it.precio_neto)), it.cantidad, Math.round(base), it.alicuota_iva, Math.round(iva_monto), Math.round(base + iva_monto), it.cuenta_contable || '', s?.nombre || ''])
       }
-    }
+    })
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
