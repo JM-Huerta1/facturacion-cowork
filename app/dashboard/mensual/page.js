@@ -208,23 +208,84 @@ export default function Mensual() {
   async function exportarCSV() {
     const paraExportar = exportarTodo ? comprobantes : comprobantes.filter(c => c.estado === 'pendiente')
     if (!paraExportar.length) return setMensaje(exportarTodo ? 'No hay comprobantes en este mes' : 'No hay comprobantes pendientes para exportar')
-    const rows = [['N° Comp.','Fecha','Tipo Comprobante','CUIT','Razon Social','Descripcion','Precio Unitario','Cantidad','Subtotal Neto','IVA %','IVA Monto','Total','Cuenta Contable','Centro de Costo']]
-    paraExportar.forEach((comp, idx) => {
-      const c = clientes[comp.cliente_id], s = sedes[comp.sede_id]
-      const nComp = idx + 1
-      for (const it of comp.comprobante_items || []) {
+
+    const TIPO_COMP = { A: 'FAV', B: 'FAV', C: 'FAV', X: 'FAV', I: 'FAV', ND: 'NDV' }
+    const LETRA = { A: 'A', B: 'B', C: 'C', X: 'X', I: 'Z', ND: 'A' }
+
+    function fmtFecha(iso) {
+      const [y, m, d] = iso.split('-')
+      return `${d}/${m}/${y}`
+    }
+    function sumarDias(iso, dias) {
+      const d = new Date(iso); d.setDate(d.getDate() + dias)
+      return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+    }
+
+    const headers = [
+      'Fecha del Comprobante','Fecha de Vencimiento','Tipo de Comprobante','Letra',
+      'Punto de Venta','Numero de Comprobante','CUIT del Cliente','Razon Social del Cliente',
+      'Descripcion de la Venta','Subtotal Gravado IVA 10,5%','Subtotal Gravado IVA 21%',
+      'Subtotal Gravado IVA 27%','Total Neto No Gravado','Percepcion de IVA',
+      'Percepcion de IIBB','Jurisdiccion de IIBB','Total del Comprobante',
+      'Cuenta Ingreso','Medio de Cobro','Centro de Costo 1','Centro de Costo 2',
+      'Periodo Desde','Periodo Hasta','CBU','Actividad','Tipo de Operacion'
+    ]
+
+    const rows = [headers]
+
+    for (const comp of paraExportar) {
+      const c = clientes[comp.cliente_id]
+      const s = sedes[comp.sede_id]
+      const items = comp.comprobante_items || []
+
+      let sub105 = 0, sub21 = 0, sub27 = 0, subNoGrav = 0
+      const descs = [], cuentas = new Set()
+
+      for (const it of items) {
         const base = Number(it.precio_neto) * Number(it.cantidad) * (1 - Number(it.descuento_pct) / 100) * (Number(it.proporcional_pct) / 100)
-        const iva_monto = base * (Number(it.alicuota_iva) / 100)
-        rows.push([nComp, comp.fecha, `Factura ${comp.tipo}`, c?.cuit || '', c?.razon_social || '', it.descripcion, Math.round(Number(it.precio_neto)), it.cantidad, Math.round(base), it.alicuota_iva, Math.round(iva_monto), Math.round(base + iva_monto), it.cuenta_contable || '', s?.nombre || ''])
+        const alicuota = Number(it.alicuota_iva)
+        const totalItem = base * (1 + alicuota / 100)
+        if (alicuota === 10.5) sub105 += totalItem
+        else if (alicuota === 21) sub21 += totalItem
+        else if (alicuota === 27) sub27 += totalItem
+        else subNoGrav += base
+        descs.push(it.descripcion)
+        if (it.cuenta_contable) cuentas.add(it.cuenta_contable)
       }
-    })
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+
+      const total = sub105 + sub21 + sub27 + subNoGrav
+      const r = v => Math.round(v * 100) / 100
+
+      rows.push([
+        fmtFecha(comp.fecha),
+        sumarDias(comp.fecha, 10),
+        TIPO_COMP[comp.tipo] || 'FAV',
+        LETRA[comp.tipo] || comp.tipo,
+        s?.punto_venta || '',
+        '',
+        c?.cuit || '',
+        c?.razon_social || '',
+        descs.join(' / '),
+        r(sub105) || '',
+        r(sub21) || '',
+        r(sub27) || '',
+        r(subNoGrav) || '',
+        '', '', '',
+        r(total),
+        [...cuentas].join('/'),
+        '',
+        s?.nombre || '',
+        '', '', '', '', '', ''
+      ])
+    }
+
+    const csv = rows.map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
     a.download = `colppy_${MESES[mes].toLowerCase()}_${anio}_${exportarTodo ? 'todas' : 'pendientes'}.csv`
     a.click(); URL.revokeObjectURL(url)
-    setMensaje(`✓ CSV exportado con ${paraExportar.length} comprobante${paraExportar.length !== 1 ? 's' : ''}`)
+    setMensaje(`✓ CSV Colppy exportado con ${paraExportar.length} comprobante${paraExportar.length !== 1 ? 's' : ''}`)
     setTimeout(() => setMensaje(''), 4000)
   }
 
